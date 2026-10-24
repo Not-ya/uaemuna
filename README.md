@@ -1,27 +1,18 @@
 # UAEMUNA
 
-A responsive, statically generated website for the United Arab Emirates Model United Nations Association. Node 24; no third-party build dependencies.
-
-## Develop
+The UAEMUNA public website and invitation-only member hub, deployed from GitHub to Netlify. Node 24, PostgreSQL, secure cookie sessions, authenticated SMTP email, Netlify Forms, and native Web Push. No Supabase account or SDK is used.
 
 ```sh
+npm ci
 npm run build
 npm test
 npm start
 ```
 
-The development server uses port 3000 (override with `PORT`). Rebuild after edits. Content lives in `content.json` and `scripts/build.mjs`; styles and client navigation live in `public/`. Original logo and conference banners are hosted locally in `public/images/`. The theme control supports system preference and a saved light/dark choice. All browser tabs are titled UAEMUNA. Generated files go to ignored `dist/`.
+Netlify builds and tests with `npm run build && npm test` and publishes `dist/`; server endpoints are in `netlify/functions/`. `npm start` serves static pages and the real API locally on port 3000 (`PORT` overrides it). Rebuild after front-end edits. Public content is in `content.json` and `scripts/build.mjs`, browser member code in `src/members.js`, styles and original artwork in `public/`. The browser tab title is UAEMUNA; light/dark preference is supported throughout.
 
-## Deploy on Netlify
+**Member services require runtime configuration:** follow [docs/member-setup.md](docs/member-setup.md) for PostgreSQL, SMTP, Netlify inbox permissions, push keys, migration, and the owner bootstrap for `youssef.f1@hotmail.com`. Configuration is deliberately not fabricated. Passwords are hashed server-side with scrypt; session and activation tokens are stored hashed. The owner cannot create anyone’s password or read their private chats through the application. Account/role controls and room access are checked on the server.
 
-Import this repository in Netlify. Use `npm run build` as the build command and `dist` as the publish directory; `netlify.toml` supplies these defaults. Alternatively, build locally and upload the contents of `dist/` through Netlify's manual deploy flow.
+Deployments need Netlify Functions, so use the GitHub-connected Netlify deployment for the full application. Uploading only `dist/` through manual drag-and-drop hosts the public pages but **does not** install the member backend. Keep form detection enabled. SMTP, database, Netlify Forms and real device push must be verified after their settings are supplied.
 
-Enable Netlify form detection and deploy the generated HTML. The contact form is a static Netlify Form named `contact`, with a honeypot, required fields, and a thank-you destination. After deployment, submit a real test message and confirm it appears in Netlify Forms; configure email notifications there. Local preview does not process form submissions. No deployment or form receipt has been verified yet.
-
-Member login deliberately links to the existing site's portal. This repository has no copy of its database or authentication server and never accepts member passwords. A full portal migration requires authorized backend/database access and a separate implementation.
-
-Before launch, review the pricing inconsistency carried over from the original site (free services vs a quotation FAQ), pending announcements, and legal policy text. Existing facts and names were retained; no current conference dates or new team members were invented.
-
-## Source preservation
-
-See `docs/source-audit.json` for rendered text and links from all original routes; `docs/source-assets.json` records original media URLs. `docs/migration.md` maps migrated content and remaining limits. Audit files are not published to the website.
+No old Manus accounts, passwords, private chats, or submissions have been imported. The new contact inbox includes this Netlify project’s `contact` form submissions once connected. Source preservation and public content history are recorded in [docs/migration.md](docs/migration.md).

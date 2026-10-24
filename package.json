@@ -1,1 +1,26 @@
-{"name":"uaemuna","version":"1.0.0","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","dev":"node scripts/serve.mjs","start":"node scripts/serve.mjs","test":"node --test tests/*.test.mjs"},"engines":{"node":">=22"}}
+{
+  "name": "uaemuna",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node --env-file-if-exists=.env scripts/serve.mjs",
+    "start": "node --env-file-if-exists=.env scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
+    "secrets:generate": "node scripts/generate-secrets.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "nodemailer": "^10.2.1",
+    "pg": "^8.23.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "esbuild": "^0.28.2"
+  }
+}
