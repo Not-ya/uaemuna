@@ -1,3 +1,4 @@
+import {authorizeSetup,initializeMembers} from "./initialize.mjs";
 import { database, transaction } from "./db.mjs";
 import { mailer } from "./mail.mjs";
 import {
@@ -137,6 +138,16 @@ export function createHandler({
         throw failure(405, "Use POST for this request.");
       const data =
         request.method === "GET" ? Object.fromEntries(url.searchParams) : input;
+      if (action === "setup.initialize") {
+        authorizeSetup(request, env);
+        try {
+          return safeJson(await initializeMembers(getDb()));
+        } catch (error) {
+          if (error.status) throw error;
+          console.error("Database initialization:", error.code || error.name);
+          return safeJson({ error: "The database could not be initialized.", code: /^[A-Z0-9_]{2,40}$/.test(error.code || "") ? error.code : "DATABASE_SETUP_FAILED" }, 503);
+        }
+      }
       const db = getDb();
       const origin = url.origin;
       const ip = context.ip || "unavailable";

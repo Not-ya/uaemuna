@@ -19,6 +19,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["pg", "nodemailer", "web-push"]
+  included_files = ["database/001_members.sql"]
 
 [[headers]]
   for = "/sw.js"

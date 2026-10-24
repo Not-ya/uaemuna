@@ -625,3 +625,30 @@ test("setup diagnostics expose only presence booleans, never server credentials"
   assert.equal(unavailable.configured, false);
   assert.equal(unavailable.checks.AUTH_SECRET, false);
 });
+
+test('protected initialization creates a fresh schema and safely handles repeat calls',async()=>{
+ const fresh=new PGlite();
+ const query=async(sql,params=[])=>{
+  if(sql.includes('pg_advisory_xact_lock')) return {rows:[]};
+  // PGlite's parameterized query interface accepts one statement; exec supports migration batches.
+  if(sql.includes('create table if not exists')){await fresh.exec(sql);return {rows:[]}}
+  return fresh.query(sql,params);
+ };
+ const connection={query,release(){}};
+ const init=createHandler({env,getDb:()=>({query,connect:async()=>connection})});
+ const invoke=async key=>init(new Request('https://uaemuna.test/.netlify/functions/members',{
+  method:'POST',headers:{Origin:'https://uaemuna.test','Content-Type':'application/json','X-Setup-Key':key},
+  body:JSON.stringify({action:'setup.initialize'})
+ }));
+ try{
+  assert.equal((await invoke('wrong')).status,403);
+  const created=await invoke(env.AUTH_SECRET);assert.equal(created.status,200);
+  assert.deepEqual(await created.json(),{initialized:true,ready:true});
+  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
+  const repeated=await invoke(env.AUTH_SECRET);assert.deepEqual(await repeated.json(),{initialized:false,ready:true});
+  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
+  await fresh.query('drop table push_deliveries');
+  const partial=await invoke(env.AUTH_SECRET);assert.equal(partial.status,409);
+  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
+ }finally{await fresh.close()}
+});
