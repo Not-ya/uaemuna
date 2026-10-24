@@ -4,6 +4,7 @@ import {
   initializeMembers,
   initializeContactInbox,
   initializePartners,
+  initializeEmailSender,
 } from "./initialize.mjs";
 import { database, transaction } from "./db.mjs";
 import { mailer, verifyMailer } from "./mail.mjs";
@@ -183,6 +184,10 @@ export function createHandler({
             503,
           );
         }
+      }
+      if (action === "setup.email-sender") {
+        authorizeSetup(request, env);
+        return safeJson(await initializeEmailSender(getDb()));
       }
       if (action === "setup.partners") {
         authorizeSetup(request, env);

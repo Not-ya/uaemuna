@@ -106,3 +106,11 @@ npm start
 ```
 
 Tests execute the real API handlers and SQL against embedded PostgreSQL (PGlite) with a test mail transport and real contact/partner handlers. They cover password hashing, one-use activation, owner bootstrap, CSRF, invitation expiry/revocation, role boundaries, private-chat isolation, reactions, contact permissions, password reset and session revocation, rate limits, push membership, and duplicate delivery protection. They also cover contact idempotency, spam controls, partner publishing, banner type checks, and preservation of deleted partners across repeated migrations. They do not prove account-email inbox delivery or actual device push delivery.
+
+## Leadership email sender
+
+Owner, admin, and executive members can open **Email sender** in the member hub. Staff, volunteers, and regular members cannot access its server endpoints. The composer sends one recipient at a time through the configured association SMTP account, using the UAEMUNA HTML layout, inline logo, and a plain-text fallback. Reply-To is the signed-in member’s verified email address. The signature is generated server-side from that member’s profile name and current role; a sender cannot submit another person’s signature or From address. Owner signatures use Founder & CEO, admins use Administrator, and executive members use Executive Team.
+
+Members review the recipient, subject, message, and signature before clicking **Send email**. They can view only their own sent history. A “Sent” status means SMTP accepted the email; recipient inbox delivery is outside the application’s control. Repeated requests for an accepted message are deduplicated. Failed sends may be retried, while uncertain SMTP outcomes require checking Gmail before composing another attempt. Limits are 20 sends/hour per person, 50/hour across the organisation, and 250/day across the organisation to leave capacity for account emails. Gmail may impose additional limits.
+
+Apply `database/004_email_sender.sql`, or use the protected `setup.email-sender` action with the existing setup key. Sent correspondence stores the recipient, subject, plain-text body, sender signature snapshot, status, and timestamps in PostgreSQL. It does not import received Gmail messages. Local tests use a fake mail transport and do not send emails to real recipients.

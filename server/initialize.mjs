@@ -119,3 +119,29 @@ export async function initializePartners(db) {
     client.release();
   }
 }
+
+export async function initializeEmailSender(db) {
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock(20261027)");
+    const sql = fs
+      .readFileSync(
+        path.join(process.cwd(), "database/004_email_sender.sql"),
+        "utf8",
+      )
+      .replace(/^\s*begin;\s*/i, "")
+      .replace(/\s*commit;\s*$/i, "");
+    await client.query(sql);
+    await client.query(
+      "select id,sender_id,request_id,status from outbound_emails limit 0",
+    );
+    await client.query("commit");
+    return { emailSenderReady: true };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

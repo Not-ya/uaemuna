@@ -20,11 +20,12 @@ export function mailer(env = process.env) {
   return async (to, subject, text, options = {}) => {
     const client = transport(env);
     try {
-      await client.sendMail({
+      return await client.sendMail({
         from: env.MAIL_FROM,
         to,
         subject,
         text,
+        ...(options.replyTo ? { replyTo: options.replyTo } : {}),
         ...(options.html
           ? {
               html: options.html,

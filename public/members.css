@@ -926,3 +926,262 @@ dialog .dialog-close {
   max-height: 90dvh;
   overflow: auto;
 }
+.email-workspace {
+  max-width: 1050px;
+  width: 100%;
+}
+.email-from {
+  padding: 18px 20px;
+  background: var(--surface);
+  border-radius: 18px;
+  font-size: 12px;
+  margin: 24px 0;
+}
+.email-from strong {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+.email-from span,
+.email-from small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.email-from small {
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 11px;
+}
+#email-compose {
+  border-radius: 24px;
+  padding: 25px;
+}
+#email-compose input,
+#email-compose textarea {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 12px;
+  margin-top: 8px;
+}
+#email-compose textarea {
+  min-height: 180px;
+}
+.compose-signature-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 23px 0;
+  font-size: 12px;
+}
+.compose-signature-note small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.sent-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin: 38px 0 15px;
+}
+.sent-heading h2 {
+  font-size: 26px;
+}
+.sent-email {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sent-email h3 {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.sent-email p {
+  font-size: 12px;
+  margin: 7px 0;
+}
+.sent-email small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.sent-email > div:last-child {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 90px;
+}
+.email-status {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 20px;
+  background: var(--surface);
+  font-size: 10px;
+}
+.status-sent {
+  background: #dce8c8;
+  color: #28472f;
+}
+.status-failed,
+.status-uncertain {
+  background: #f0d9cc;
+  color: #703b28;
+}
+.email-review-to {
+  overflow-wrap: anywhere;
+}
+.mail-preview {
+  background: #fffdf6;
+  color: #173f35;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #e1e5d6;
+  text-align: left;
+  margin: 20px 0;
+}
+.mail-preview-brand {
+  background: #173f35;
+  color: #fffdf6;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 20px;
+}
+.mail-preview-brand img,
+.mail-signature img {
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mail-preview-brand strong {
+  display: block;
+  font-size: 19px;
+  letter-spacing: 1px;
+}
+.mail-preview-brand small {
+  color: #d6e99b;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.mail-preview-content {
+  padding: 25px;
+}
+.mail-preview .mail-eyebrow {
+  font:
+    600 9px/1.5 Arial,
+    sans-serif;
+  letter-spacing: 1.2px;
+  color: #58704e;
+  margin: 0 0 16px;
+}
+.mail-preview h3 {
+  font:
+    700 25px/1.2 Arial,
+    sans-serif;
+  letter-spacing: -0.5px;
+  color: #173f35;
+  margin: 0 0 24px;
+  overflow-wrap: anywhere;
+}
+.mail-preview-body {
+  font:
+    14px/1.8 Arial,
+    sans-serif;
+  color: #374f40;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mail-preview .mail-signoff {
+  font-size: 12px;
+  color: #536458;
+  margin: 24px 0 18px;
+}
+.mail-signature {
+  display: flex;
+  align-items: start;
+  gap: 14px;
+  border-top: 2px solid #c8db9d;
+  padding-top: 20px;
+  font-family: Arial, sans-serif;
+}
+.mail-signature > div {
+  min-width: 0;
+}
+.mail-signature strong {
+  display: block;
+  font-size: 17px;
+  color: #173f35;
+}
+.mail-signature span {
+  display: block;
+  font-size: 9px;
+  color: #60784d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-block: 6px;
+}
+.mail-signature small {
+  display: block;
+  font-size: 9px;
+  line-height: 1.7;
+  color: #6a7669;
+}
+.mail-signature a {
+  display: block;
+  font-size: 11px;
+  color: #305a44;
+  text-decoration: none;
+  margin: 7px 0;
+  overflow-wrap: anywhere;
+}
+#email-send-status {
+  font-size: 12px;
+}
+#member-dialog:has(.mail-preview) {
+  max-width: 620px;
+}
+@media (max-width: 650px) {
+  #email-compose {
+    padding: 18px;
+  }
+  .email-from {
+    padding: 15px;
+  }
+  .sent-heading {
+    align-items: start;
+  }
+  .sent-heading h2 {
+    font-size: 23px;
+  }
+  .sent-email {
+    gap: 12px;
+  }
+  .mail-preview-content {
+    padding: 20px;
+  }
+  .mail-preview-brand {
+    padding: 16px;
+  }
+  .mail-signature {
+    gap: 10px;
+  }
+  .mail-signature img {
+    width: 35px;
+    height: 35px;
+  }
+  .mail-signature strong {
+    font-size: 15px;
+  }
+  .mail-preview h3 {
+    font-size: 23px;
+  }
+  .compose-signature-note {
+    align-items: start;
+  }
+}
+.mail-signature strong{overflow-wrap:anywhere}

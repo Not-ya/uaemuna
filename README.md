@@ -16,3 +16,5 @@ Netlify builds and tests with `npm run build && npm test` and publishes `dist/`;
 Deployments need Netlify Functions, so use the GitHub-connected Netlify deployment for the full application. Uploading only `dist/` through manual drag-and-drop hosts the public pages but **does not** install the member backend. New contact messages are stored in PostgreSQL; no Netlify API token is required. SMTP, database and real device push must be verified after their settings are supplied.
 
 No old Manus accounts, passwords, private chats, or submissions have been imported. The contact inbox now shows submissions saved through the site’s own contact endpoint. Earlier Netlify Forms entries remain in Netlify and are not imported automatically. Owners can manage partner listings and banners directly in the member dashboard. Source preservation and public content history are recorded in [docs/migration.md](docs/migration.md).
+
+Leadership email: owner/admin/executive members have a branded composer with their verified personal signature, Reply-To, send review, and private sent history. Requires migration 004; uses the existing SMTP settings. See docs/member-setup.md.

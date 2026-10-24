@@ -66,6 +66,11 @@ const roleName = (role) =>
     volunteer: "Volunteer",
     member: "Member",
   })[role] || "Member";
+let emailMetadata,
+  emailRows = [],
+  emailRequestId,
+  pendingEmail,
+  emailPage = 1;
 let partnerRows = [];
 let session,
   profile,
@@ -243,7 +248,7 @@ async function loadHub() {
   subscribe();
 }
 function renderHub() {
-  root.innerHTML = `<div class="hub"><aside class="hub-sidebar"><div class="hub-member"><span class="avatar">${e(initials(profile.id))}</span><div><strong>${e(name(profile.id))}</strong><small>${e(roleName(profile.role))}</small></div></div><nav class="hub-nav" aria-label="Member sections"><button data-view="chats" class="selected">Conversations</button>${["owner", "admin"].includes(profile.role) ? '<button data-view="inbox">Contact inbox</button>' : ""}${profile.role === "owner" ? '<button data-view="team">Team & invitations</button><button data-view="partners">Partners & banners</button>' : ""}<button data-view="settings">My account</button></nav><div id="chat-list"></div><button class="new-dm" data-action="new-dm">＋ New private chat</button><button class="hub-signout" data-action="signout">Sign out</button></aside><section class="hub-main" id="hub-main" aria-label="Member workspace"></section></div><dialog id="member-dialog"><div id="dialog-content"></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></dialog>`;
+  root.innerHTML = `<div class="hub"><aside class="hub-sidebar"><div class="hub-member"><span class="avatar">${e(initials(profile.id))}</span><div><strong>${e(name(profile.id))}</strong><small>${e(roleName(profile.role))}</small></div></div><nav class="hub-nav" aria-label="Member sections"><button data-view="chats" class="selected">Conversations</button>${["owner", "admin"].includes(profile.role) ? '<button data-view="inbox">Contact inbox</button>' : ""}${profile.role === "owner" ? '<button data-view="team">Team & invitations</button><button data-view="partners">Partners & banners</button>' : ""}${["owner", "admin", "executive"].includes(profile.role) ? '<button data-view="email">Email sender</button>' : ""}<button data-view="settings">My account</button></nav><div id="chat-list"></div><button class="new-dm" data-action="new-dm">＋ New private chat</button><button class="hub-signout" data-action="signout">Sign out</button></aside><section class="hub-main" id="hub-main" aria-label="Member workspace"></section></div><dialog id="member-dialog"><div id="dialog-content"></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></dialog>`;
   renderChatList();
   root.addEventListener("click", handleClick);
   root.addEventListener("submit", handleSubmit);
@@ -476,6 +481,7 @@ async function handleClick(event) {
       if (hubView === "team") await showTeam();
       if (hubView === "settings") showSettings();
       if (hubView === "partners") await showPartners();
+      if (hubView === "email") await showEmailSender();
       return;
     }
     if (target.dataset.direct) {
@@ -513,6 +519,22 @@ async function handleClick(event) {
       location.assign("/login/");
     }
     if (action === "new-dm") showNewDm();
+    if (action === "send-composed-email") await sendComposedEmail(target);
+    if (action === "new-email") {
+      emailRequestId = crypto.randomUUID();
+      pendingEmail = null;
+      document.querySelector("#email-compose").reset();
+      notice("New email started.");
+    }
+    if (action === "refresh-emails") await loadEmailHistory();
+    if (action === "more-emails") await loadEmailHistory(emailPage + 1);
+    if (action === "view-sent-email") {
+      const message = emailRows.find((row) => row.id === id);
+      dialog(
+        `<h2>Email details</h2><p>To: ${e(message.recipient)} · ${e(message.status)}</p>${emailPreview({ subject: message.subject, body: message.body, signature: { name: message.sender_name, title: message.sender_title, email: message.reply_to } })}`,
+      );
+    }
+
     if (action === "edit-partner")
       partnerForm(partnerRows.find((p) => p.id === id));
     if (action === "new-partner") partnerForm();
@@ -658,11 +680,15 @@ async function handleSubmit(event) {
   const form = event.target;
   if (
     !form.matches(
-      "#compose-form,#invite-form,#profile-form,.member-row,#partner-form",
+      "#compose-form,#invite-form,#profile-form,.member-row,#partner-form,#email-compose",
     )
   )
     return;
   event.preventDefault();
+  if (form.id === "email-compose") {
+    reviewComposedEmail(form);
+    return;
+  }
   if (form.id === "partner-form") {
     await savePartner(form);
     return;
@@ -907,5 +933,94 @@ async function savePartner(form) {
     status.textContent = error.message || "Could not save. Please try again.";
   } finally {
     button.disabled = false;
+  }
+}
+
+function emailPreview({ subject, body, signature }) {
+  return `<article class="mail-preview"><div class="mail-preview-brand"><img src="/images/uaemuna-emblem.png" width="48" height="48" alt="UAEMUNA logo"><div><strong>UAEMUNA</strong><small>YOUR PEOPLE. YOUR NEXT MUN.</small></div></div><div class="mail-preview-content"><p class="mail-eyebrow">A MESSAGE FROM ${e(signature.name.toUpperCase())}</p><h3>${e(subject)}</h3><div class="mail-preview-body">${e(body)}</div><p class="mail-signoff">Kind regards,</p><div class="mail-signature"><img src="/images/uaemuna-emblem.png" width="48" height="48" alt="UAEMUNA"><div><strong>${e(signature.name)}</strong><span>${e(signature.title)} · UAEMUNA</span><small>United Arab Emirates Model United Nations Association</small><a href="mailto:${e(signature.email)}">${e(signature.email)}</a><small>uaemuna.netlify.app &nbsp; / &nbsp; @uaemuna</small></div></div></div></article>`;
+}
+async function showEmailSender() {
+  if (!["owner", "admin", "executive"].includes(profile.role)) return;
+  emailMetadata = await api("email");
+  emailRequestId = crypto.randomUUID();
+  pendingEmail = null;
+  document.querySelector("#hub-main").innerHTML =
+    `<div class="workspace-page email-workspace"><p class="eyebrow">LEADERSHIP & ADMIN</p><h1>A message from you.</h1><p>Write it here. We’ll add the UAEMUNA design and your personal signature.</p><div class="email-from"><strong>From</strong><span>${e(emailMetadata.from)}</span><small>Replies go to ${e(emailMetadata.signature.email)}. Your name and role are added automatically.</small></div><form id="email-compose"><label>To<input type="email" name="to" autocomplete="off" placeholder="person@example.com" required maxlength="254"></label><label>Subject<input name="subject" required maxlength="200" placeholder="What’s this about?"></label><label>Your message<textarea name="body" rows="9" maxlength="10000" required placeholder="Hi there…"></textarea></label><div class="compose-signature-note"><span class="avatar">${e(initials(profile.id))}</span><span>Signed by <strong>${e(emailMetadata.signature.name)}</strong><small>${e(emailMetadata.signature.title)} · ${e(emailMetadata.signature.email)}</small></span></div><div class="settings-actions"><button class="button" type="submit">Review email ↗</button><button class="subtle-button" type="button" data-action="new-email">New email</button></div><p class="small">One recipient per email · up to ${emailMetadata.limitPerHour} emails per hour per sender</p></form><div class="sent-heading"><h2>My sent emails</h2><button class="subtle-button" data-action="refresh-emails">Refresh history</button></div><div id="email-history" aria-live="polite">Loading history…</div></div>`;
+  await loadEmailHistory();
+}
+function reviewComposedEmail(form) {
+  const f = new FormData(form);
+  pendingEmail = {
+    requestId: emailRequestId,
+    to: String(f.get("to")).trim(),
+    subject: String(f.get("subject")).trim(),
+    body: String(f.get("body")).trim(),
+  };
+  if (!pendingEmail.subject || !pendingEmail.body) {
+    notice("Add a subject and message before reviewing.", true);
+    return;
+  }
+  dialog(
+    `<h2>Ready to send?</h2><p class="email-review-to">To: ${e(pendingEmail.to)}</p>${emailPreview({ ...pendingEmail, signature: emailMetadata.signature })}<p class="small">Replies will go to ${e(emailMetadata.signature.email)}.</p><p id="email-send-status" role="status"></p><button class="button" data-action="send-composed-email">Send email</button>`,
+  );
+}
+async function sendComposedEmail(button) {
+  if (!pendingEmail) return;
+  button.disabled = true;
+  const status = document.querySelector("#email-send-status");
+  status.textContent = "Sending with your signature…";
+  try {
+    const response = await fetch("/.netlify/functions/email", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(pendingEmail),
+    });
+    const result = await response.json();
+    if (!response.ok || result.status !== "sent") {
+      status.textContent =
+        result.error ||
+        result.message ||
+        "Could not confirm sending. Please check Gmail before trying again.";
+      button.disabled =
+        result.status === "uncertain" || response.status === 409;
+      await loadEmailHistory();
+      return;
+    }
+    closeDialog();
+    pendingEmail = null;
+    emailRequestId = crypto.randomUUID();
+    document.querySelector("#email-compose")?.reset();
+    notice("Email accepted by Gmail, with your signature.");
+    await loadEmailHistory();
+  } catch {
+    status.textContent =
+      "The connection was interrupted. Check your sent history before sending this again.";
+    button.disabled = true;
+  }
+}
+async function loadEmailHistory(page = 1) {
+  const target = document.querySelector("#email-history");
+  if (!target) return;
+  try {
+    const result = await api("email?action=history&page=" + page);
+    if (hubView !== "email") return;
+    emailPage = page;
+    emailRows = page === 1 ? result.emails : [...emailRows, ...result.emails];
+    target.innerHTML =
+      emailRows
+        .map(
+          (row) =>
+            `<article class="sent-email"><div><h3>${e(row.subject)}</h3><p>To: ${e(row.recipient)}</p><small>${e(new Date(row.created_at).toLocaleString())}</small></div><div><span class="email-status status-${e(row.status)}">${e({ sent: "Sent", sending: "Sending", failed: "Not sent", uncertain: "Check Gmail" }[row.status])}</span><button class="subtle-button" data-action="view-sent-email" data-id="${row.id}">View email</button></div></article>`,
+        )
+        .join("") ||
+      "<p>No sent emails yet. Your correspondence will appear here.</p>";
+    if (result.hasMore)
+      target.insertAdjacentHTML(
+        "beforeend",
+        '<button class="subtle-button" data-action="more-emails">Load more emails</button>',
+      );
+  } catch (error) {
+    target.textContent = error.message;
   }
 }

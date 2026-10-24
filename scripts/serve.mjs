@@ -5,6 +5,7 @@ import members from "../server/api.mjs";
 import push from "../server/push.mjs";
 import contact from "../server/contact.mjs";
 import partners from "../server/partners.mjs";
+import email from "../server/email-sender.mjs";
 if (!fs.existsSync("dist/index.html")) await import("./build.mjs");
 const root = path.resolve("dist");
 const types = {
@@ -25,13 +26,16 @@ http
         const handler =
           url.pathname === "/.netlify/functions/members"
             ? members
-            : url.pathname === "/.netlify/functions/partners"
-              ? partners
-              : url.pathname === "/.netlify/functions/contact"
-                ? contact
-                : url.pathname === "/.netlify/functions/push-message-background"
-                  ? push
-                  : null;
+            : url.pathname === "/.netlify/functions/email"
+              ? email
+              : url.pathname === "/.netlify/functions/partners"
+                ? partners
+                : url.pathname === "/.netlify/functions/contact"
+                  ? contact
+                  : url.pathname ===
+                      "/.netlify/functions/push-message-background"
+                    ? push
+                    : null;
         if (!handler) {
           res.writeHead(404);
           res.end();
