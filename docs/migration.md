@@ -37,10 +37,12 @@ AAIOMUN is corrected to Al Ain International Online MUN following the owner’s 
 - Member feature update: 21 automated checks pass, including real handler/SQL tests against embedded PostgreSQL. Browser flows passed for login, chat, reactions, replies, invitations, contact inbox, DMs, mobile layouts, and logout using local test transports.
 - Pending external configuration: actual email delivery, Netlify API access for inbox, VAPID environment values, real device push delivery, and any old-platform data export. See member-setup.md.
 
-Production PostgreSQL initialization completed successfully on 24 October 2026. Runtime presence checks confirm the database URL, SMTP variables, account-security secret, and VAPID settings are present. Netlify API token and Site ID remain missing for the contact inbox. Actual email delivery and device push still require verification.
+Production PostgreSQL initialization completed successfully on 24 October 2026. Runtime presence checks confirm the database URL, SMTP variables, account-security secret, and VAPID settings are present. The later database-backed contact update removes the Netlify API credential requirement for new submissions. Actual email delivery and device push still require verification.
 
 Production SMTP connection and authentication were verified successfully on 24 October 2026 using the protected check; the response was `connected: true, emailSent: false`. This did not send mail or establish inbox delivery. Owner activation still requires the owner to request and open their one-use signup email.
 
 ## Contact and content-management update
 
 New contact messages now use PostgreSQL via the site’s own endpoint, eliminating the Netlify API dependency for the new inbox. Historical Netlify Forms records remain untouched. Owners can manage partners and image banners through the dashboard, and public listings load published records from the database. Applications are linked in the main menu, homepage action, and mobile header. Reveal and hover motion respect reduced-motion preferences. Account emails now include the original inline logo and a plain-text fallback.
+
+Production migrations 002 (contact inbox) and 003 (partners) completed successfully. The protected setup responses were `contactInboxReady: true` and `partnersReady: true`. Public partner retrieval returned the two original conferences, and live contact validation returned the expected HTTP 400 for invalid input. All 28 automated tests and browser flows for contact storage, partner uploads/publishing, application navigation, mobile layouts and reduced motion passed.
