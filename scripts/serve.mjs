@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import members from "../server/api.mjs";
 import push from "../server/push.mjs";
+import contact from "../server/contact.mjs";
+import partners from "../server/partners.mjs";
 if (!fs.existsSync("dist/index.html")) await import("./build.mjs");
 const root = path.resolve("dist");
 const types = {
@@ -23,9 +25,13 @@ http
         const handler =
           url.pathname === "/.netlify/functions/members"
             ? members
-            : url.pathname === "/.netlify/functions/push-message-background"
-              ? push
-              : null;
+            : url.pathname === "/.netlify/functions/partners"
+              ? partners
+              : url.pathname === "/.netlify/functions/contact"
+                ? contact
+                : url.pathname === "/.netlify/functions/push-message-background"
+                  ? push
+                  : null;
         if (!handler) {
           res.writeHead(404);
           res.end();
@@ -35,7 +41,12 @@ http
         let size = 0;
         for await (const chunk of req) {
           size += chunk.length;
-          if (size > 20000) {
+          if (
+            size >
+            (url.pathname === "/.netlify/functions/partners"
+              ? 3 * 1024 * 1024
+              : 20000)
+          ) {
             res.writeHead(413);
             res.end();
             return;

@@ -28,6 +28,7 @@ const env = {
 before(async () => {
   pg = new PGlite();
   await pg.exec(fs.readFileSync("database/001_members.sql", "utf8"));
+  await pg.exec(fs.readFileSync("database/002_contact.sql", "utf8"));
   const query = async (sql, params = []) => {
     const r = await pg.query(sql, params);
     return { ...r, rowCount: r.affectedRows };
@@ -44,25 +45,6 @@ before(async () => {
     sendMail: async (to, subject, text) => {
       mail.push({ to, subject, text });
     },
-    netlifyFetch: async (url) =>
-      Response.json(
-        url.includes("/forms?")
-          ? []
-          : url.endsWith("/forms")
-            ? [{ id: "test-form", name: "contact" }]
-            : [
-                {
-                  id: "submission-1",
-                  created_at: "2026-10-24",
-                  data: {
-                    name: "Test sender",
-                    email: "sender@example.test",
-                    message: "Hello team",
-                    subject: "Partnership",
-                  },
-                },
-              ],
-      ),
   });
 });
 after(async () => pg.close());
@@ -371,6 +353,24 @@ test("DMs are isolated from outsiders, including the owner; duplicates converge"
   );
 });
 test("contact submissions are available to owner/admin only", async () => {
+  const { createContactHandler } = await import("../server/contact.mjs");
+  const submit = createContactHandler({ getDb: () => db, env });
+  const r0 = await submit(
+    new Request("https://uaemuna.test/.netlify/functions/contact", {
+      method: "POST",
+      headers: {
+        Origin: "https://uaemuna.test",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Test sender",
+        email: "sender@example.test",
+        message: "Hello team",
+      }),
+    }),
+    { ip: "contact-test" },
+  );
+  assert.equal(r0.status, 200);
   const r = await request("contact.list", { page: 1 }, owner);
   assert.equal(r.status, 200);
   assert.equal(r.body.submissions[0].message, "Hello team");
@@ -610,56 +610,128 @@ test("setup diagnostics expose only presence booleans, never server credentials"
   };
   const inspect = createHandler({
     env: credentials,
-    getDb: () => { throw new Error("Status must not query the database"); },
+    getDb: () => {
+      throw new Error("Status must not query the database");
+    },
   });
-  const response = await inspect(new Request("https://uaemuna.test/.netlify/functions/members?action=status"));
+  const response = await inspect(
+    new Request(
+      "https://uaemuna.test/.netlify/functions/members?action=status",
+    ),
+  );
   const result = await response.json();
   assert.equal(result.configured, true);
   assert.equal(result.pushConfigured, false);
   assert.equal(result.checks.DATABASE_URL, true);
-  assert.equal(result.checks.NETLIFY_API_TOKEN, false);
-  assert.ok(Object.values(result.checks).every(value => typeof value === "boolean"));
-  for (const secret of Object.values(credentials)) assert.ok(!JSON.stringify(result).includes(secret));
-  const missing = createHandler({env:{},getDb:()=>{throw new Error("Not configured");}});
-  const unavailable = await (await missing(new Request("https://uaemuna.test/.netlify/functions/members?action=status"))).json();
+  assert.equal(result.checks.VAPID_PUBLIC_KEY, false);
+  assert.ok(
+    Object.values(result.checks).every((value) => typeof value === "boolean"),
+  );
+  for (const secret of Object.values(credentials))
+    assert.ok(!JSON.stringify(result).includes(secret));
+  const missing = createHandler({
+    env: {},
+    getDb: () => {
+      throw new Error("Not configured");
+    },
+  });
+  const unavailable = await (
+    await missing(
+      new Request(
+        "https://uaemuna.test/.netlify/functions/members?action=status",
+      ),
+    )
+  ).json();
   assert.equal(unavailable.configured, false);
   assert.equal(unavailable.checks.AUTH_SECRET, false);
 });
 
-test('protected initialization creates a fresh schema and safely handles repeat calls',async()=>{
- const fresh=new PGlite();
- const query=async(sql,params=[])=>{
-  if(sql.includes('pg_advisory_xact_lock')) return {rows:[]};
-  // PGlite's parameterized query interface accepts one statement; exec supports migration batches.
-  if(sql.includes('create table if not exists')){await fresh.exec(sql);return {rows:[]}}
-  return fresh.query(sql,params);
- };
- const connection={query,release(){}};
- const init=createHandler({env,getDb:()=>({query,connect:async()=>connection})});
- const invoke=async key=>init(new Request('https://uaemuna.test/.netlify/functions/members',{
-  method:'POST',headers:{Origin:'https://uaemuna.test','Content-Type':'application/json','X-Setup-Key':key},
-  body:JSON.stringify({action:'setup.initialize'})
- }));
- try{
-  assert.equal((await invoke('wrong')).status,403);
-  const created=await invoke(env.AUTH_SECRET);assert.equal(created.status,200);
-  assert.deepEqual(await created.json(),{initialized:true,ready:true});
-  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
-  const repeated=await invoke(env.AUTH_SECRET);assert.deepEqual(await repeated.json(),{initialized:false,ready:true});
-  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
-  await fresh.query('drop table push_deliveries');
-  const partial=await invoke(env.AUTH_SECRET);assert.equal(partial.status,409);
-  assert.equal((await fresh.query('select * from conversations')).rows.length,4);
- }finally{await fresh.close()}
+test("protected initialization creates a fresh schema and safely handles repeat calls", async () => {
+  const fresh = new PGlite();
+  const query = async (sql, params = []) => {
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+    // PGlite's parameterized query interface accepts one statement; exec supports migration batches.
+    if (sql.includes("create table if not exists")) {
+      await fresh.exec(sql);
+      return { rows: [] };
+    }
+    return fresh.query(sql, params);
+  };
+  const connection = { query, release() {} };
+  const init = createHandler({
+    env,
+    getDb: () => ({ query, connect: async () => connection }),
+  });
+  const invoke = async (key) =>
+    init(
+      new Request("https://uaemuna.test/.netlify/functions/members", {
+        method: "POST",
+        headers: {
+          Origin: "https://uaemuna.test",
+          "Content-Type": "application/json",
+          "X-Setup-Key": key,
+        },
+        body: JSON.stringify({ action: "setup.initialize" }),
+      }),
+    );
+  try {
+    assert.equal((await invoke("wrong")).status, 403);
+    const created = await invoke(env.AUTH_SECRET);
+    assert.equal(created.status, 200);
+    assert.deepEqual(await created.json(), { initialized: true, ready: true });
+    assert.equal(
+      (await fresh.query("select * from conversations")).rows.length,
+      4,
+    );
+    const repeated = await invoke(env.AUTH_SECRET);
+    assert.deepEqual(await repeated.json(), {
+      initialized: false,
+      ready: true,
+    });
+    assert.equal(
+      (await fresh.query("select * from conversations")).rows.length,
+      4,
+    );
+    await fresh.query("drop table push_deliveries");
+    const partial = await invoke(env.AUTH_SECRET);
+    assert.equal(partial.status, 409);
+    assert.equal(
+      (await fresh.query("select * from conversations")).rows.length,
+      4,
+    );
+  } finally {
+    await fresh.close();
+  }
 });
 
-test('SMTP verification is protected and never sends a message',async()=>{
- let verified=0,sent=0;
- const verify=createHandler({env,verifyMail:async()=>{verified++},sendMail:async()=>{sent++}});
- const invoke=key=>verify(new Request('https://uaemuna.test/.netlify/functions/members',{
-  method:'POST',headers:{Origin:'https://uaemuna.test','Content-Type':'application/json','X-Setup-Key':key},body:JSON.stringify({action:'setup.verify-email'})
- }));
- assert.equal((await invoke('wrong')).status,403);assert.equal(verified,0);
- const r=await invoke(env.AUTH_SECRET);assert.deepEqual(await r.json(),{connected:true,emailSent:false});
- assert.equal(verified,1);assert.equal(sent,0);
+test("SMTP verification is protected and never sends a message", async () => {
+  let verified = 0,
+    sent = 0;
+  const verify = createHandler({
+    env,
+    verifyMail: async () => {
+      verified++;
+    },
+    sendMail: async () => {
+      sent++;
+    },
+  });
+  const invoke = (key) =>
+    verify(
+      new Request("https://uaemuna.test/.netlify/functions/members", {
+        method: "POST",
+        headers: {
+          Origin: "https://uaemuna.test",
+          "Content-Type": "application/json",
+          "X-Setup-Key": key,
+        },
+        body: JSON.stringify({ action: "setup.verify-email" }),
+      }),
+    );
+  assert.equal((await invoke("wrong")).status, 403);
+  assert.equal(verified, 0);
+  const r = await invoke(env.AUTH_SECRET);
+  assert.deepEqual(await r.json(), { connected: true, emailSent: false });
+  assert.equal(verified, 1);
+  assert.equal(sent, 0);
 });

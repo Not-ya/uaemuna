@@ -854,7 +854,75 @@ dialog .dialog-close {
 }
 
 @media (max-width: 650px) {
-  .hub { grid-template-rows: auto minmax(0, 1fr); }
-  .hub-sidebar { max-height: none; }
-  .hub-main { min-height: 400px; }
+  .hub {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .hub-sidebar {
+    max-height: none;
+  }
+  .hub-main {
+    min-height: 400px;
+  }
+}
+.admin-partners {
+  display: grid;
+  gap: 22px;
+  margin-top: 30px;
+}
+.admin-partner {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.admin-partner > img {
+  width: 100%;
+  height: auto;
+  max-height: 230px;
+  object-fit: contain;
+  background: var(--surface);
+  display: block;
+}
+.admin-partner > div:not(.partner-placeholder) {
+  padding: 22px;
+}
+.admin-partner h2 {
+  font-size: 28px;
+  margin: 16px 0 8px;
+}
+.admin-partner p {
+  font-size: 13px;
+}
+.admin-partner .partner-placeholder {
+  font-size: 18px;
+  height: 130px;
+  border-radius: 0;
+}
+#partner-form {
+  padding: 20px 0 0;
+  background: none;
+}
+#partner-form input:not([type="checkbox"]),
+#partner-form textarea {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px;
+  margin-top: 7px;
+}
+#partner-form .active-label {
+  margin: 18px 0;
+}
+#partner-preview {
+  width: 100%;
+  height: auto;
+  max-height: 190px;
+  object-fit: contain;
+  margin: 10px 0;
+}
+#partner-form-status {
+  font-size: 12px;
+}
+#member-dialog {
+  max-height: 90dvh;
+  overflow: auto;
 }

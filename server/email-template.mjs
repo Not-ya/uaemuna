@@ -1,0 +1,19 @@
+const escape = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+export function accountEmail({ purpose, url }) {
+  const activate = purpose === "activate";
+  const title = activate ? "You’re on the team." : "Let’s get you back in.";
+  const button = activate ? "Set up my account" : "Reset my password";
+  const intro = activate
+    ? "Your UAEMUNA member space is waiting. Pick your name and password, then jump into your team’s chats and everything happening behind the conferences."
+    : "Forgot your password? It happens. Choose a fresh one below and get back to your people.";
+  const text = `${title}\n\n${intro}\n\n${button}:\n${url}\n\nThis one-use link expires in 30 minutes. Never forward it. If you didn’t request this, ignore this email.\n\nUAEMUNA · United Arab Emirates Model United Nations Association\nuaemodeluna@gmail.com`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#f1f2e9;font-family:Arial,Helvetica,sans-serif;color:#183d32"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escape(title)} Your private account link is inside.</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f2e9"><tr><td align="center" style="padding:36px 16px"><table role="presentation" width="560" cellspacing="0" cellpadding="0" style="width:100%;max-width:560px"><tr><td style="padding:24px 30px;background:#173f35;border-radius:24px 24px 0 0"><table role="presentation" cellspacing="0" cellpadding="0"><tr><td width="68"><img src="cid:uaemuna-emblem" width="56" height="56" alt="UAEMUNA logo" style="display:block;border:0;border-radius:50%"></td><td style="color:#fffdf4"><strong style="font-size:20px;letter-spacing:1px">UAEMUNA</strong><br><span style="font-size:10px;letter-spacing:1.4px;color:#d4dfbd">YOUR PEOPLE. YOUR NEXT MUN.</span></td></tr></table></td></tr><tr><td style="padding:36px 30px 32px;background:#fffdf6;border-radius:0 0 24px 24px"><p style="font-size:10px;letter-spacing:2px;font-weight:bold;color:#58704e;margin:0 0 22px">${activate ? "MEMBER INVITATION" : "PASSWORD RESET"}</p><h1 style="font-size:38px;line-height:1.1;letter-spacing:-1.4px;margin:0 0 22px;font-weight:700;color:#173f35">${escape(title)}</h1><p style="font-size:16px;line-height:1.8;color:#536458;margin:0 0 26px">${escape(intro)}</p><table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="border-radius:28px;background:#d6e99b"><a href="${escape(url)}" style="display:inline-block;padding:17px 28px;font-size:15px;font-weight:bold;color:#173f35;text-decoration:none;border:1px solid #d6e99b;border-radius:28px">${escape(button)} &nbsp; ↗</a></td></tr></table><p style="font-size:12px;line-height:1.7;color:#6c776d;margin:24px 0 0">One use. 30 minutes. Just for you.<br>Keep this link private. If you didn’t request it, you can ignore this email.</p><hr style="border:0;border-top:1px solid #e4e7dc;margin:28px 0"><p style="font-size:11px;line-height:1.7;color:#6c776d;margin:0">Button not opening? Copy this link into your browser:</p><p style="font-size:11px;line-height:1.7;word-break:break-all;margin:8px 0 0"><a href="${escape(url)}" style="color:#305a44">${escape(url)}</a></p></td></tr><tr><td align="center" style="padding:24px 20px;font-size:10px;line-height:1.8;color:#667263">United Arab Emirates Model United Nations Association<br><a href="mailto:uaemodeluna@gmail.com" style="color:#526650;text-decoration:none">uaemodeluna@gmail.com</a></td></tr></table></td></tr></table></body></html>`;
+  return { text, html };
+}

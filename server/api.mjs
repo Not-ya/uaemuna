@@ -1,4 +1,10 @@
-import {authorizeSetup,initializeMembers} from "./initialize.mjs";
+import { accountEmail } from "./email-template.mjs";
+import {
+  authorizeSetup,
+  initializeMembers,
+  initializeContactInbox,
+  initializePartners,
+} from "./initialize.mjs";
 import { database, transaction } from "./db.mjs";
 import { mailer, verifyMailer } from "./mail.mjs";
 import {
@@ -68,12 +74,17 @@ async function issueEmail(db, email, purpose, send, origin) {
   );
   const path = purpose === "activate" ? "/set-password/" : "/reset-password/";
   try {
+    const content = accountEmail({
+      purpose,
+      url: `${origin}${path}?token=${raw}`,
+    });
     await send(
       email,
       purpose === "activate"
         ? "Your UAEMUNA account invitation"
         : "Reset your UAEMUNA password",
-      `Hello,\n\n${purpose === "activate" ? "You can now set up your UAEMUNA member account." : "Use this link to choose a new password."}\n\n${origin}${path}?token=${raw}\n\nThis one-use link expires in 30 minutes. If you did not request it, you can ignore this email. Never forward this link.\n\nUAEMUNA`,
+      content.text,
+      { html: content.html },
     );
   } catch (error) {
     await db.query("delete from auth_tokens where hash=$1", [digest(raw)]);
@@ -88,7 +99,6 @@ export function createHandler({
   sendMail = mailer(),
   verifyMail = () => verifyMailer(env),
   env = process.env,
-  netlifyFetch = fetch,
 } = {}) {
   return async (request, context = {}) => {
     try {
@@ -113,14 +123,32 @@ export function createHandler({
           : input.action;
       if (action === "status") {
         // Presence only: never include connection strings, passwords, or private keys.
-        const required = ["DATABASE_URL", "AUTH_SECRET", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM"];
+        const required = [
+          "DATABASE_URL",
+          "AUTH_SECRET",
+          "SMTP_HOST",
+          "SMTP_USER",
+          "SMTP_PASSWORD",
+          "MAIL_FROM",
+        ];
         const checks = Object.fromEntries(
-          [...required, "NETLIFY_API_TOKEN", "NETLIFY_SITE_ID", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
-            .map(name => [name, name === "AUTH_SECRET" ? !!(env[name]?.length >= 32) : !!env[name]])
+          [
+            ...required,
+            "VAPID_PUBLIC_KEY",
+            "VAPID_PRIVATE_KEY",
+            "VAPID_SUBJECT",
+          ].map((name) => [
+            name,
+            name === "AUTH_SECRET" ? !!(env[name]?.length >= 32) : !!env[name],
+          ]),
         );
         return safeJson({
-          configured: required.every(name => checks[name]),
-          pushConfigured: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"].every(name => checks[name]),
+          configured: required.every((name) => checks[name]),
+          pushConfigured: [
+            "VAPID_PUBLIC_KEY",
+            "VAPID_PRIVATE_KEY",
+            "VAPID_SUBJECT",
+          ].every((name) => checks[name]),
           vapidPublicKey: env.VAPID_PUBLIC_KEY || "",
           checks,
         });
@@ -145,8 +173,24 @@ export function createHandler({
           await verifyMail();
           return safeJson({ connected: true, emailSent: false });
         } catch (error) {
-          return safeJson({ error: "SMTP connection verification failed.", code: /^[A-Z0-9_]{2,40}$/.test(error.code || "") ? error.code : "SMTP_VERIFY_FAILED" }, 503);
+          return safeJson(
+            {
+              error: "SMTP connection verification failed.",
+              code: /^[A-Z0-9_]{2,40}$/.test(error.code || "")
+                ? error.code
+                : "SMTP_VERIFY_FAILED",
+            },
+            503,
+          );
         }
+      }
+      if (action === "setup.partners") {
+        authorizeSetup(request, env);
+        return safeJson(await initializePartners(getDb()));
+      }
+      if (action === "setup.contact") {
+        authorizeSetup(request, env);
+        return safeJson(await initializeContactInbox(getDb()));
       }
       if (action === "setup.initialize") {
         authorizeSetup(request, env);
@@ -155,7 +199,15 @@ export function createHandler({
         } catch (error) {
           if (error.status) throw error;
           console.error("Database initialization:", error.code || error.name);
-          return safeJson({ error: "The database could not be initialized.", code: /^[A-Z0-9_]{2,40}$/.test(error.code || "") ? error.code : "DATABASE_SETUP_FAILED" }, 503);
+          return safeJson(
+            {
+              error: "The database could not be initialized.",
+              code: /^[A-Z0-9_]{2,40}$/.test(error.code || "")
+                ? error.code
+                : "DATABASE_SETUP_FAILED",
+            },
+            503,
+          );
         }
       }
       const db = getDb();
@@ -527,39 +579,20 @@ export function createHandler({
       }
       if (action === "contact.list") {
         requireRole(user, ["owner", "admin"]);
-        if (!env.NETLIFY_API_TOKEN || !env.NETLIFY_SITE_ID)
-          throw failure(
-            503,
-            "The inbox needs its Netlify connection. Submissions remain available in Netlify Forms.",
-          );
-        const page = Math.max(1, Math.min(1000, Number(data.page) || 1));
-        const headers = { Authorization: `Bearer ${env.NETLIFY_API_TOKEN}` };
-        const forms = await netlifyFetch(
-          `https://api.netlify.com/api/v1/sites/${encodeURIComponent(env.NETLIFY_SITE_ID)}/forms`,
-          { headers, signal: AbortSignal.timeout(10000) },
+        const page = Math.max(
+          1,
+          Math.min(10000, Math.floor(Number(data.page) || 1)),
         );
-        if (!forms.ok) throw failure(502, "Could not reach Netlify Forms.");
-        const form = (await forms.json()).find((f) => f.name === "contact");
-        if (!form) return safeJson({ submissions: [], page, hasMore: false });
-        const r = await netlifyFetch(
-          `https://api.netlify.com/api/v1/forms/${encodeURIComponent(form.id)}/submissions?per_page=50&page=${page}`,
-          { headers, signal: AbortSignal.timeout(10000) },
-        );
-        if (!r.ok) throw failure(502, "Could not load the contact inbox.");
-        const rows = await r.json();
+        const rows = (
+          await db.query(
+            "select id,name,email,subject,message,created_at from contact_submissions order by created_at desc,id desc limit 51 offset $1",
+            [(page - 1) * 50],
+          )
+        ).rows;
         return safeJson({
-          submissions: rows.map((r) => ({
-            id: r.id,
-            created_at: r.created_at,
-            ...Object.fromEntries(
-              ["name", "email", "subject", "message"].map((k) => [
-                k,
-                String(r.data?.[k] || ""),
-              ]),
-            ),
-          })),
+          submissions: rows.slice(0, 50),
           page,
-          hasMore: rows.length === 50,
+          hasMore: rows.length > 50,
         });
       }
       throw failure(404, "This action is unavailable.");

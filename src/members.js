@@ -66,6 +66,7 @@ const roleName = (role) =>
     volunteer: "Volunteer",
     member: "Member",
   })[role] || "Member";
+let partnerRows = [];
 let session,
   profile,
   members = [],
@@ -196,8 +197,10 @@ async function api(path, init = {}) {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
   });
-  if (!res.ok) throw new Error("Notification delivery is unavailable.");
-  return { ok: true };
+  const result = await res.json().catch(() => ({ ok: true }));
+  if (!res.ok)
+    throw new Error(result.error || "This service is temporarily unavailable.");
+  return result;
 }
 function chatName(c) {
   return c.kind === "direct"
@@ -240,7 +243,7 @@ async function loadHub() {
   subscribe();
 }
 function renderHub() {
-  root.innerHTML = `<div class="hub"><aside class="hub-sidebar"><div class="hub-member"><span class="avatar">${e(initials(profile.id))}</span><div><strong>${e(name(profile.id))}</strong><small>${e(roleName(profile.role))}</small></div></div><nav class="hub-nav" aria-label="Member sections"><button data-view="chats" class="selected">Conversations</button>${["owner", "admin"].includes(profile.role) ? '<button data-view="inbox">Contact inbox</button>' : ""}${profile.role === "owner" ? '<button data-view="team">Team & invitations</button>' : ""}<button data-view="settings">My account</button></nav><div id="chat-list"></div><button class="new-dm" data-action="new-dm">＋ New private chat</button><button class="hub-signout" data-action="signout">Sign out</button></aside><section class="hub-main" id="hub-main" aria-label="Member workspace"></section></div><dialog id="member-dialog"><div id="dialog-content"></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></dialog>`;
+  root.innerHTML = `<div class="hub"><aside class="hub-sidebar"><div class="hub-member"><span class="avatar">${e(initials(profile.id))}</span><div><strong>${e(name(profile.id))}</strong><small>${e(roleName(profile.role))}</small></div></div><nav class="hub-nav" aria-label="Member sections"><button data-view="chats" class="selected">Conversations</button>${["owner", "admin"].includes(profile.role) ? '<button data-view="inbox">Contact inbox</button>' : ""}${profile.role === "owner" ? '<button data-view="team">Team & invitations</button><button data-view="partners">Partners & banners</button>' : ""}<button data-view="settings">My account</button></nav><div id="chat-list"></div><button class="new-dm" data-action="new-dm">＋ New private chat</button><button class="hub-signout" data-action="signout">Sign out</button></aside><section class="hub-main" id="hub-main" aria-label="Member workspace"></section></div><dialog id="member-dialog"><div id="dialog-content"></div><button class="dialog-close" data-action="close-dialog" aria-label="Close dialog">×</button></dialog>`;
   renderChatList();
   root.addEventListener("click", handleClick);
   root.addEventListener("submit", handleSubmit);
@@ -302,9 +305,8 @@ async function refreshMessages(scroll = false) {
   if (id !== currentChat || hubView !== "chats") return;
   const latest = r.data.reverse();
   const latestIds = new Set(latest.map((m) => m.id));
-  const older = messages.length > 80
-    ? messages.filter((m) => !latestIds.has(m.id))
-    : [];
+  const older =
+    messages.length > 80 ? messages.filter((m) => !latestIds.has(m.id)) : [];
   messages = [...older, ...latest];
   const rr = messages.length
     ? await call("reaction.list", { chat: id })
@@ -427,6 +429,7 @@ function setComposeContext() {
 function dialog(html) {
   document.querySelector("#dialog-content").innerHTML = html;
   document.querySelector("#member-dialog").showModal();
+  document.querySelector("#member-dialog").scrollTop = 0;
 }
 function closeDialog() {
   document.querySelector("#member-dialog").close();
@@ -472,6 +475,7 @@ async function handleClick(event) {
       }
       if (hubView === "team") await showTeam();
       if (hubView === "settings") showSettings();
+      if (hubView === "partners") await showPartners();
       return;
     }
     if (target.dataset.direct) {
@@ -501,13 +505,31 @@ async function handleClick(event) {
       clearInterval(channel);
       // The server deletes session subscriptions atomically. Browser cleanup is best effort.
       try {
-        const registration = await navigator.serviceWorker?.getRegistration("/");
+        const registration =
+          await navigator.serviceWorker?.getRegistration("/");
         const subscription = await registration?.pushManager.getSubscription();
         await subscription?.unsubscribe();
       } catch {}
       location.assign("/login/");
     }
     if (action === "new-dm") showNewDm();
+    if (action === "edit-partner")
+      partnerForm(partnerRows.find((p) => p.id === id));
+    if (action === "new-partner") partnerForm();
+    if (action === "delete-partner")
+      dialog(
+        `<h2>Remove this partner?</h2><p>This removes the listing and its uploaded banner from your website.</p><button class="button danger" data-action="confirm-delete-partner" data-id="${id}">Remove partner</button>`,
+      );
+    if (action === "confirm-delete-partner") {
+      await api("partners", {
+        method: "POST",
+        body: JSON.stringify({ action: "delete", id }),
+      });
+      closeDialog();
+      await showPartners();
+      notice("Partner removed.");
+    }
+
     if (action === "close-dialog") closeDialog();
     if (action === "react")
       dialog(
@@ -593,7 +615,7 @@ async function showInbox(page) {
   const main = document.querySelector("#hub-main");
   if (page === 1)
     main.innerHTML =
-      '<div class="workspace-page"><p class="eyebrow">OWNER & ADMIN</p><h1>Contact inbox</h1><p>Messages sent through the website’s contact form.</p><div id="inbox-list" role="status">Loading submissions…</div></div>';
+      '<div class="workspace-page"><p class="eyebrow">OWNER & ADMIN</p><h1>Contact inbox</h1><p>New messages sent through the website’s contact form. Earlier Netlify Forms submissions remain in Netlify.</p><div id="inbox-list" role="status">Loading submissions…</div></div>';
   try {
     const r = await api("contact-inbox?page=" + page);
     if (hubView !== "inbox") return;
@@ -634,9 +656,17 @@ function showSettings() {
 }
 async function handleSubmit(event) {
   const form = event.target;
-  if (!form.matches("#compose-form,#invite-form,#profile-form,.member-row"))
+  if (
+    !form.matches(
+      "#compose-form,#invite-form,#profile-form,.member-row,#partner-form",
+    )
+  )
     return;
   event.preventDefault();
+  if (form.id === "partner-form") {
+    await savePartner(form);
+    return;
+  }
   if (form.id === "compose-form") {
     await sendMessage(form);
     return;
@@ -796,3 +826,86 @@ async function boot() {
 boot().catch(() =>
   fatal("The member hub could not connect. Please try again shortly."),
 );
+
+async function showPartners() {
+  if (profile.role !== "owner") return;
+  const result = await api("partners", {
+    method: "POST",
+    body: JSON.stringify({ action: "list" }),
+  });
+  partnerRows = result.partners;
+  document.querySelector("#hub-main").innerHTML =
+    `<div class="workspace-page"><p class="eyebrow">YOUR COMMUNITY</p><h1>Partners & banners</h1><p>Add conferences and partners here. Published listings appear on the homepage and Partners page. Lower display-order numbers appear first.</p><button class="button" data-action="new-partner">＋ Add a partner</button><div class="admin-partners">${partnerRows.map((p) => `<article class="admin-partner">${p.bannerUrl ? `<img src="${e(p.bannerUrl)}" alt="${e(p.name)} banner">` : '<div class="partner-placeholder">No banner yet</div>'}<div><span class="role-pill">${p.published ? "Published" : "Draft"}</span><h2>${e(p.name)}</h2><p>${e(p.description)}</p><div class="settings-actions"><button class="subtle-button" data-action="edit-partner" data-id="${p.id}">Edit partner</button><button class="subtle-button" data-action="delete-partner" data-id="${p.id}">Remove</button></div></div></article>`).join("") || "<p>No partners yet. Add your first one above.</p>"}</div></div>`;
+}
+function partnerForm(partner = {}) {
+  dialog(
+    `<h2>${partner.id ? "Edit partner" : "Add a partner"}</h2><form id="partner-form" data-id="${partner.id || ""}"><label>Name<input name="name" maxlength="100" required value="${e(partner.name || "")}"></label><label>Website<input name="website" type="url" placeholder="https://" required maxlength="2000" value="${e(partner.website || "")}"></label><label>Description<textarea name="description" rows="3" maxlength="1500">${e(partner.description || "")}</textarea></label><label>Conference banner<input name="banner" type="file" accept="image/png,image/jpeg,image/webp"></label><p class="small">PNG, JPEG or WebP, up to 2 MB. Your full banner stays visible without cropping.</p><img id="partner-preview" ${partner.bannerUrl ? `src="${e(partner.bannerUrl)}"` : "hidden"} alt="Banner preview"><label class="active-label"><input name="removeBanner" type="checkbox"> Remove current banner</label><label>Display order<input name="position" type="number" min="0" max="10000" value="${partner.position || 0}" required></label><label class="active-label"><input name="published" type="checkbox" ${partner.published !== false ? "checked" : ""}> Published on the website</label><p id="partner-form-status" role="status"></p><button class="button" type="submit">Save partner</button></form>`,
+  );
+  const field = document.querySelector('#partner-form [name="banner"]');
+  field.addEventListener("change", () => {
+    const file = field.files[0];
+    if (!file) return;
+    const status = document.querySelector("#partner-form-status");
+    if (
+      file.size > 2 * 1024 * 1024 ||
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    ) {
+      status.textContent = "Choose a PNG, JPEG or WebP up to 2 MB.";
+      field.value = "";
+      return;
+    }
+    status.textContent = "";
+    const reader = new FileReader();
+    reader.onload = () => {
+      const preview = document.querySelector("#partner-preview");
+      preview.src = reader.result;
+      preview.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function savePartner(form) {
+  const button = form.querySelector('button[type="submit"]'),
+    status = document.querySelector("#partner-form-status");
+  button.disabled = true;
+  status.textContent = "Saving your partner…";
+  try {
+    const f = new FormData(form),
+      file = f.get("banner");
+    let banner;
+    if (file?.size) {
+      if (file.size > 2 * 1024 * 1024)
+        throw new Error("Choose a banner up to 2 MB.");
+      const data = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result.split(",")[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      banner = { data, type: file.type };
+    }
+    await api("partners", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "save",
+        id: form.dataset.id || undefined,
+        name: f.get("name"),
+        description: f.get("description"),
+        website: f.get("website"),
+        position: Number(f.get("position")),
+        published: f.has("published"),
+        removeBanner: f.has("removeBanner"),
+        banner,
+      }),
+    });
+    closeDialog();
+    await showPartners();
+    notice(
+      "Partner saved. Published changes are now available on the website.",
+    );
+  } catch (error) {
+    status.textContent = error.message || "Could not save. Please try again.";
+  } finally {
+    button.disabled = false;
+  }
+}

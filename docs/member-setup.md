@@ -18,8 +18,6 @@ Add the following in **Netlify → Project configuration → Environment variabl
 | `SMTP_USER` | SMTP username |
 | `SMTP_PASSWORD` | SMTP password/API credential |
 | `MAIL_FROM` | Verified sender address, e.g. `UAEMUNA <team@your-domain>` |
-| `NETLIFY_API_TOKEN` | Netlify personal access token with access to this project’s forms; server-only |
-| `NETLIFY_SITE_ID` | The project’s Netlify Site ID |
 | `VAPID_PUBLIC_KEY` | Web Push public key |
 | `VAPID_PRIVATE_KEY` | Web Push private key; server-only |
 | `VAPID_SUBJECT` | `mailto:uaemodeluna@gmail.com` |
@@ -80,7 +78,15 @@ The new system does not import passwords, accounts, or private messages from the
 
 Direct chats are visible only to their two participants, including when someone else is owner/admin. They are private through application access controls, not end-to-end encryption. Infrastructure administrators with database access can access records. Users can reply, react, edit their own messages, and delete them; admins can moderate messages in group chats they can access. Live chat refreshes every four seconds while the page is visible; this is polling, not WebSockets. Earlier messages load on demand.
 
-Keep Netlify Forms detection enabled. Submit the public contact form after deployment and confirm the message appears in the member **Contact inbox**. The inbox reads the real `contact` form via the Netlify API with pagination, so existing submissions from this Netlify project are included. The old Manus server’s submissions cannot be recovered without its backend export. No data is fetched directly from Netlify in the browser and the API token is never exposed there.
+The public contact form now posts to `/.netlify/functions/contact`, validates fields, limits spam, and stores messages in PostgreSQL. The owner/admin **Contact inbox** reads those records directly with pagination. It works without a Netlify API token. Earlier Netlify Forms submissions remain in that service and need a separate export if you want to migrate them; old Manus server submissions likewise require a backend export.
+
+## Partner management
+
+Owners can open **Partners & banners** to add a name, HTTPS website, description, display order, and PNG/JPEG/WebP banner up to 2 MB. Save as a draft or publish to the homepage and Partners page. Existing partners can be edited, unpublished, or removed. Image bytes live in PostgreSQL and are delivered with verified image content types and cache versioning. Draft banners are visible only to the owner. Original ValorMUN and AAIOMUN partners are seeded once; removing them does not cause them to reappear on a later migration.
+
+Apply `database/002_contact.sql` and `database/003_partners.sql` using the migration CLI or the protected setup actions `setup.contact` and `setup.partners` with the existing setup key. These are additive migrations; they do not delete users, chats, or existing submissions. `npm run migrate` now applies all numbered migrations in order.
+
+Account invitation and password-reset emails include the original logo as an inline attachment, a styled HTML action button, and a plain-text version. All one-use links retain their existing expiry and security checks.
 
 ## 5. Push notifications
 
@@ -99,4 +105,4 @@ npm test
 npm start
 ```
 
-Tests execute the real API handlers and SQL against embedded PostgreSQL (PGlite) with a test mail transport and a test Netlify Forms response. They cover password hashing, one-use activation, owner bootstrap, CSRF, invitation expiry/revocation, role boundaries, private-chat isolation, reactions, contact permissions, password reset and session revocation, rate limits, push membership, and duplicate delivery protection. They do not prove external SMTP, production PostgreSQL, Netlify Forms permissions, or actual device push delivery.
+Tests execute the real API handlers and SQL against embedded PostgreSQL (PGlite) with a test mail transport and real contact/partner handlers. They cover password hashing, one-use activation, owner bootstrap, CSRF, invitation expiry/revocation, role boundaries, private-chat isolation, reactions, contact permissions, password reset and session revocation, rate limits, push membership, and duplicate delivery protection. They also cover contact idempotency, spam controls, partner publishing, banner type checks, and preservation of deleted partners across repeated migrations. They do not prove account-email inbox delivery or actual device push delivery.

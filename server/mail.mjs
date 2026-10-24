@@ -1,7 +1,10 @@
+import path from "node:path";
 import nodemailer from "nodemailer";
 function transport(env) {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD || !env.MAIL_FROM)
-    throw Object.assign(new Error("Account email is awaiting configuration."), { status: 503 });
+    throw Object.assign(new Error("Account email is awaiting configuration."), {
+      status: 503,
+    });
   return nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: Number(env.SMTP_PORT || 465),
@@ -14,14 +17,41 @@ function transport(env) {
   });
 }
 export function mailer(env = process.env) {
-  return async (to, subject, text) => {
+  return async (to, subject, text, options = {}) => {
     const client = transport(env);
-    try { await client.sendMail({ from: env.MAIL_FROM, to, subject, text }); }
-    finally { client.close(); }
+    try {
+      await client.sendMail({
+        from: env.MAIL_FROM,
+        to,
+        subject,
+        text,
+        ...(options.html
+          ? {
+              html: options.html,
+              attachments: [
+                {
+                  filename: "uaemuna.png",
+                  path: path.join(
+                    process.cwd(),
+                    "public/images/uaemuna-emblem.png",
+                  ),
+                  cid: "uaemuna-emblem",
+                },
+              ],
+            }
+          : {}),
+      });
+    } finally {
+      client.close();
+    }
   };
 }
 export async function verifyMailer(env = process.env) {
   const client = transport(env);
-  try { await client.verify(); return true; }
-  finally { client.close(); }
+  try {
+    await client.verify();
+    return true;
+  } finally {
+    client.close();
+  }
 }

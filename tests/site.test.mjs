@@ -31,14 +31,13 @@ test("all internal page, asset, and fragment links resolve", () => {
     }
   }
 });
-test("Netlify contact form declares the full submission contract", () => {
+test("contact form posts to its own database-backed endpoint", () => {
   const html = fs.readFileSync("dist/contact/index.html", "utf8");
   for (const token of [
     'method="POST"',
-    'data-netlify="true"',
-    'netlify-honeypot="website"',
-    'name="form-name" value="contact"',
-    'action="/thank-you/"',
+    'name="website"',
+    'name="request_id"',
+    'action="/.netlify/functions/contact"',
     'name="name"',
     'name="email"',
     'name="message"',
@@ -83,5 +82,15 @@ test("both conference banners appear on home and partners pages", () => {
       assert.ok(html.includes(`/images/${banner}`), file);
       assert.ok(fs.statSync(`dist/images/${banner}`).size > 0);
     }
+  }
+});
+
+test("Applications are reachable from the main navigation and mobile header", () => {
+  for (const file of files) {
+    const html = fs.readFileSync(file, "utf8");
+    assert.ok(html.includes('href="/registration/"'), file);
+    assert.ok(html.includes('class="quick-apply"'), file);
+    const nav = html.split('id="navigation"')[1].split("</nav>")[0];
+    assert.ok(nav.includes("Applications"), file);
   }
 });
