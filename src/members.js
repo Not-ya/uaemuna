@@ -768,7 +768,7 @@ async function boot() {
   Object.assign(config, await request("status", {}, true));
   if (!config.configured) {
     root.innerHTML =
-      '<section class="auth-panel"><p class="eyebrow">MEMBER HUB</p><h1>We’re getting the team space ready.</h1><p>Secure member login is awaiting its database and email configuration. Please check back soon.</p><a class="plain-link" href="mailto:uaemodelun@gmail.com">Contact UAEMUNA</a></section>';
+      '<section class="auth-panel"><p class="eyebrow">MEMBER HUB</p><h1>We’re getting the team space ready.</h1><p>Secure member login is awaiting its database and email configuration. Please check back soon.</p><a class="plain-link" href="mailto:uaemodeluna@gmail.com">Contact UAEMUNA</a></section>';
     return;
   }
   const path = location.pathname;

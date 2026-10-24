@@ -9,7 +9,7 @@ if (fs.existsSync(path)) {
 const keys = webpush.generateVAPIDKeys();
 fs.writeFileSync(
   path,
-  `AUTH_SECRET=${randomBytes(48).toString("base64url")}\nVAPID_PUBLIC_KEY=${keys.publicKey}\nVAPID_PRIVATE_KEY=${keys.privateKey}\nVAPID_SUBJECT=mailto:uaemodelun@gmail.com\n`,
+  `AUTH_SECRET=${randomBytes(48).toString("base64url")}\nVAPID_PUBLIC_KEY=${keys.publicKey}\nVAPID_PRIVATE_KEY=${keys.privateKey}\nVAPID_SUBJECT=mailto:uaemodeluna@gmail.com\n`,
   { flag: "wx", mode: 0o600 },
 );
 console.log(
