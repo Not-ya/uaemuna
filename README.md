@@ -10,7 +10,7 @@ npm test
 npm start
 ```
 
-The development server uses port 3000 (override with `PORT`). Rebuild after edits. Content lives in `content.json` and `scripts/build.mjs`; styles and client navigation live in `public/`. Generated files go to ignored `dist/`.
+The development server uses port 3000 (override with `PORT`). Rebuild after edits. Content lives in `content.json` and `scripts/build.mjs`; styles and client navigation live in `public/`. Original logo and conference banners are hosted locally in `public/images/`. The theme control supports system preference and a saved light/dark choice. All browser tabs are titled UAEMUNA. Generated files go to ignored `dist/`.
 
 ## Deploy on Netlify
 

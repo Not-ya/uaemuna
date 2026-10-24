@@ -20,7 +20,9 @@ Source: https://uaemunaweb-36zi5zye.manus.space/ inspected 24 October 2026.
 
 Public text and links are archived in source-audit.json. The original legal introduction and contact paragraphs are retained verbatim in content.json. Existing member records, contact submissions, newsletter subscribers, internal messages and guidance notes are not publicly accessible and have not been extracted. The original client references executive, advisor, and member dashboards; reproducing their interfaces would not migrate their data or security. They remain accessible through the original portal.
 
-Original logo and partner image URLs are recorded in source-assets.json. The cloud proxy currently blocks files.manuscdn.com and d2xsxph8kpxj0f.cloudfront.net. Media bytes have not been downloaded; the redesign uses original vector artwork, a typographic identity, and founder initials instead of inventing portraits. Allow these media hosts to recover the original assets for an archive or later placement.
+Original logo and partner image URLs are recorded in source-assets.json. The logo, circular emblem upload, and both conference banners have now been downloaded over verified HTTPS and are served from public/images/. Both banners appear on the home and partners pages without cropping. The original emblem appears in the header, footer, hero, and browser favicon. The decorative globe and placeholder founder portraits have been removed; founder names and roles remain.
+
+Every browser tab is titled UAEMUNA. The light/dark toggle follows the operating system until a visitor makes a choice, saves that choice locally when storage is available, and applies it before the stylesheet loads. Storage failures are tolerated. Private member credentials are never stored by this website.
 
 Original FAQ references a newsletter, but no subscription form appeared on the inspected homepage. No newsletter subscription behavior is claimed in the replacement. The retained FAQ and policy are original content; the added privacy note explains this implementation.
 
@@ -29,7 +31,7 @@ Source facts remain as requested. "Coming soon" news is retained as pending info
 ## Validation
 
 - Build: 13 static HTML pages.
-- Automated tests: local links and anchors, form markup, all application destinations, eight FAQs, and exclusion of old credential storage and analytics.
-- Chromium: 13 routes at 1440px and 390px; successful expected responses, one main heading, no horizontal overflow or JavaScript exceptions.
-- Interactions: mobile menu navigation, FAQ expansion, required-field and valid-form checks.
+- Automated tests: six checks covering local links and anchors, form markup, application destinations, FAQs, original logo and banners, tab title, theme controls, and exclusion of old credential storage and analytics.
+- Chromium: 13 routes at 1440px, 390px, and 320px in both light and dark mode (78 combinations); successful expected responses, exact UAEMUNA tab title, one main heading, all images loaded, no horizontal overflow or JavaScript exceptions.
+- Interactions: mobile menu navigation, FAQ expansion, required-field and valid-form checks; theme toggle persistence after reload and navigation, system preference, and storage-disabled fallback.
 - Pending after deployment: Netlify Forms receipt, notifications, published custom domain and any private portal migration.
