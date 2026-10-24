@@ -24,9 +24,25 @@ Add the following in **Netlify → Project configuration → Environment variabl
 | `VAPID_PRIVATE_KEY` | Web Push private key; server-only |
 | `VAPID_SUBJECT` | `mailto:uaemodelun@gmail.com` |
 
-Configure your sender domain with the email provider (SPF/DKIM) so account emails arrive reliably. The system sends real invitation, activation, and reset emails; there are no simulated email links in production.
+For a custom sender domain, configure it with your email provider (SPF/DKIM) so account emails arrive reliably. A Gmail sender uses its matching Gmail address instead. The system sends real invitation, activation, and reset emails; there are no simulated email links in production.
 
 Generate `AUTH_SECRET` and Web Push keys with `npm run secrets:generate`. It writes a private ignored `.env.generated` file and never prints the values. Import those values into Netlify; do not regenerate VAPID keys after browsers subscribe unless intentionally rotating them. Existing values are never overwritten.
+
+## Gmail SMTP for uaemuna.netlify.app
+
+The production site is https://uaemuna.netlify.app/. The existing SMTP implementation supports Gmail without code changes. Use the association’s `uaemodelun@gmail.com` account if that is the mailbox you control:
+
+| Netlify Functions variable | Gmail setting |
+| --- | --- |
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_USER` | `uaemodelun@gmail.com` |
+| `SMTP_PASSWORD` | A Google App Password for that Gmail account; **not** its normal login password |
+| `MAIL_FROM` | `UAEMUNA <uaemodelun@gmail.com>` |
+
+In that Google account, enable 2-Step Verification under https://myaccount.google.com/security, then create an App Password at https://myaccount.google.com/apppasswords. Put it directly in Netlify’s `SMTP_PASSWORD` setting. If you use a different Gmail account, change both `SMTP_USER` and `MAIL_FROM` to match it. Do not share the App Password in chat or commit it to GitHub. Gmail controls the sending limits; it is suitable for starting with a small invited team.
+
+SMTP sends the account emails; PostgreSQL is still required for accounts and chat storage. Once all runtime values and the schema are present, redeploy, visit https://uaemuna.netlify.app/create-account/, and request the owner activation link for `youssef.f1@hotmail.com`.
 
 ## 2. Create the schema
 
