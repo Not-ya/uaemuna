@@ -55,6 +55,10 @@ npm run migrate
 
 The initial migration is repeatable and does not delete existing data. Future schema changes should get new migration files. Netlify Functions need permissions to read/write these tables. Do not expose database credentials to browser code. Database backups belong to the hosting provider and should be configured there.
 
+Operator-assisted setup can also use the protected POST action `setup.initialize` on `/.netlify/functions/members`, with the private `AUTH_SECRET` supplied as `X-Setup-Key`. It creates a fresh schema transactionally, does nothing when all member tables already exist, and refuses a partial schema to preserve existing data. Never place this key in browser code or share it in chat. The protected action `setup.verify-email` checks the SMTP connection and authentication without sending a message.
+
+Production database initialization was successfully completed on 24 October 2026; the server returned `initialized: true, ready: true`.
+
 ## 3. Deploy, claim the owner account, invite members
 
 Deploy the GitHub `main` branch after setting environment variables. Visit `/create-account/`, enter `youssef.f1@hotmail.com`, and open the email link to set your name and password. No one can claim owner access by typing that email alone: the one-use emailed token proves access to the mailbox. Do not forward it.

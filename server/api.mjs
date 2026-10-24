@@ -1,6 +1,6 @@
 import {authorizeSetup,initializeMembers} from "./initialize.mjs";
 import { database, transaction } from "./db.mjs";
-import { mailer } from "./mail.mjs";
+import { mailer, verifyMailer } from "./mail.mjs";
 import {
   token,
   digest,
@@ -86,6 +86,7 @@ async function issueEmail(db, email, purpose, send, origin) {
 export function createHandler({
   getDb = database,
   sendMail = mailer(),
+  verifyMail = () => verifyMailer(env),
   env = process.env,
   netlifyFetch = fetch,
 } = {}) {
@@ -138,6 +139,15 @@ export function createHandler({
         throw failure(405, "Use POST for this request.");
       const data =
         request.method === "GET" ? Object.fromEntries(url.searchParams) : input;
+      if (action === "setup.verify-email") {
+        authorizeSetup(request, env);
+        try {
+          await verifyMail();
+          return safeJson({ connected: true, emailSent: false });
+        } catch (error) {
+          return safeJson({ error: "SMTP connection verification failed.", code: /^[A-Z0-9_]{2,40}$/.test(error.code || "") ? error.code : "SMTP_VERIFY_FAILED" }, 503);
+        }
+      }
       if (action === "setup.initialize") {
         authorizeSetup(request, env);
         try {

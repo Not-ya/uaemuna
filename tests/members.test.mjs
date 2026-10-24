@@ -652,3 +652,14 @@ test('protected initialization creates a fresh schema and safely handles repeat 
   assert.equal((await fresh.query('select * from conversations')).rows.length,4);
  }finally{await fresh.close()}
 });
+
+test('SMTP verification is protected and never sends a message',async()=>{
+ let verified=0,sent=0;
+ const verify=createHandler({env,verifyMail:async()=>{verified++},sendMail:async()=>{sent++}});
+ const invoke=key=>verify(new Request('https://uaemuna.test/.netlify/functions/members',{
+  method:'POST',headers:{Origin:'https://uaemuna.test','Content-Type':'application/json','X-Setup-Key':key},body:JSON.stringify({action:'setup.verify-email'})
+ }));
+ assert.equal((await invoke('wrong')).status,403);assert.equal(verified,0);
+ const r=await invoke(env.AUTH_SECRET);assert.deepEqual(await r.json(),{connected:true,emailSent:false});
+ assert.equal(verified,1);assert.equal(sent,0);
+});
