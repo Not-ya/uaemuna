@@ -109,23 +109,20 @@ export function createHandler({
         request.method === "GET"
           ? url.searchParams.get("action")
           : input.action;
-      if (action === "status")
+      if (action === "status") {
+        // Presence only: never include connection strings, passwords, or private keys.
+        const required = ["DATABASE_URL", "AUTH_SECRET", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM"];
+        const checks = Object.fromEntries(
+          [...required, "NETLIFY_API_TOKEN", "NETLIFY_SITE_ID", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
+            .map(name => [name, name === "AUTH_SECRET" ? !!(env[name]?.length >= 32) : !!env[name]])
+        );
         return safeJson({
-          configured: !!(
-            env.DATABASE_URL &&
-            env.AUTH_SECRET?.length >= 32 &&
-            env.SMTP_HOST &&
-            env.SMTP_USER &&
-            env.SMTP_PASSWORD &&
-            env.MAIL_FROM
-          ),
-          pushConfigured: !!(
-            env.VAPID_PUBLIC_KEY &&
-            env.VAPID_PRIVATE_KEY &&
-            env.VAPID_SUBJECT
-          ),
+          configured: required.every(name => checks[name]),
+          pushConfigured: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"].every(name => checks[name]),
           vapidPublicKey: env.VAPID_PUBLIC_KEY || "",
+          checks,
         });
+      }
       const readActions = [
         "auth.session",
         "member.list",

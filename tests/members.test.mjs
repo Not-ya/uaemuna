@@ -597,3 +597,31 @@ test("push deliveries follow room membership and sessions, avoid DM leakage, and
   assert.equal(calls.length, 2);
   assert.ok(calls[1].endpoint.endsWith("test-1"));
 });
+
+test("setup diagnostics expose only presence booleans, never server credentials", async () => {
+  const credentials = {
+    DATABASE_URL: "postgres://private-database-sentinel",
+    AUTH_SECRET: "private-auth-sentinel".repeat(4),
+    SMTP_HOST: "smtp.example.test",
+    SMTP_USER: "private-user-sentinel",
+    SMTP_PASSWORD: "private-password-sentinel",
+    MAIL_FROM: "team@example.test",
+    VAPID_PRIVATE_KEY: "private-push-sentinel",
+  };
+  const inspect = createHandler({
+    env: credentials,
+    getDb: () => { throw new Error("Status must not query the database"); },
+  });
+  const response = await inspect(new Request("https://uaemuna.test/.netlify/functions/members?action=status"));
+  const result = await response.json();
+  assert.equal(result.configured, true);
+  assert.equal(result.pushConfigured, false);
+  assert.equal(result.checks.DATABASE_URL, true);
+  assert.equal(result.checks.NETLIFY_API_TOKEN, false);
+  assert.ok(Object.values(result.checks).every(value => typeof value === "boolean"));
+  for (const secret of Object.values(credentials)) assert.ok(!JSON.stringify(result).includes(secret));
+  const missing = createHandler({env:{},getDb:()=>{throw new Error("Not configured");}});
+  const unavailable = await (await missing(new Request("https://uaemuna.test/.netlify/functions/members?action=status"))).json();
+  assert.equal(unavailable.configured, false);
+  assert.equal(unavailable.checks.AUTH_SECRET, false);
+});
