@@ -57,7 +57,7 @@ The initial migration is repeatable and does not delete existing data. Future sc
 
 Operator-assisted setup can also use the protected POST action `setup.initialize` on `/.netlify/functions/members`, with the private `AUTH_SECRET` supplied as `X-Setup-Key`. It creates a fresh schema transactionally, does nothing when all member tables already exist, and refuses a partial schema to preserve existing data. Never place this key in browser code or share it in chat. The protected action `setup.verify-email` checks the SMTP connection and authentication without sending a message.
 
-Production database initialization was successfully completed on 24 October 2026; the server returned `initialized: true, ready: true`.
+Production database initialization was successfully completed on 24 October 2026; the server returned `initialized: true, ready: true`. SMTP connection and authentication also passed the protected verification check (`connected: true, emailSent: false`). Actual mail delivery and owner activation still need a signup request from the owner.
 
 ## 3. Deploy, claim the owner account, invite members
 
